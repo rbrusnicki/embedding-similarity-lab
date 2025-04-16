@@ -7,6 +7,7 @@ frames_covla_1k/
 embeddings/
 chamfer_comparison_images/
 aligned_comparison_images/
+aligned_similarity_images/
 *.csv
 *.xlsx
 *.tsv

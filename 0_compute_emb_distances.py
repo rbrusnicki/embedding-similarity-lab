@@ -73,12 +73,14 @@ os.makedirs(output_dir, exist_ok=True)
 image_files = [f for f in os.listdir(image_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg'))][:1]
 print(f"Found {len(image_files)} images in {image_dir}")
 
-# Lists to store embeddings and metadata
-all_embeddings = []
+# Initialize metadata list
 metadata = []
 
-# Process each image
-for image_file in tqdm(image_files, desc="Processing images"):
+# Create an empty .npz file to start
+np.savez(os.path.join(output_dir, "image_embeddings.npz"))
+
+# Process each image and save incrementally
+for i, image_file in enumerate(tqdm(image_files, desc="Processing images")):
     image_path = os.path.join(image_dir, image_file)
     try:
         # Get full path
@@ -89,28 +91,28 @@ for image_file in tqdm(image_files, desc="Processing images"):
         # Get embedding
         embedding = get_image_embedding(file_uri)
         
-        # Store embedding and metadata
-        all_embeddings.append(embedding.detach().cpu().numpy())
+        # Save embedding to an individual file
+        embedding_file = os.path.join(output_dir, f"embedding_{i}.npy")
+        np.save(embedding_file, embedding.detach().cpu().numpy())
+        
+        # Store metadata
         metadata.append({
             'image_path': image_path,
+            'embedding_file': embedding_file,
             'shape': embedding.shape
         })
         
         # Optional: print progress periodically
-        if len(all_embeddings) % 10 == 0:
-            print(f"Processed {len(all_embeddings)}/{len(image_files)} images")
+        if (i + 1) % 10 == 0:
+            print(f"Processed {i + 1}/{len(image_files)} images")
     
     except Exception as e:
         print(f"Error processing {image_file}: {e}")
 
-# Check if we have any embeddings
-if len(all_embeddings) == 0:
+# Check if we have any metadata
+if len(metadata) == 0:
     print("No embeddings were successfully extracted. Check the error messages above.")
     exit()
-
-# Save the embeddings
-print(f"Saving {len(all_embeddings)} embeddings to {embeddings_file}")
-np.save(embeddings_file, np.array(all_embeddings, dtype=object))
 
 # Save metadata
 print(f"Saving metadata to {metadata_file}")
