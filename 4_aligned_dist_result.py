@@ -4,11 +4,20 @@ from PIL import Image
 import os
 import numpy as np
 
+# Choose which data to process
+use_vision_tower_data = True  ################### Set to False to use original image embeddings ###################
+
 # Configuration
-distances_csv = "embeddings/aligned_distances.csv"
-image_dir = "frames_covla_1k"
-output_dir = "aligned_comparison_images"
-n_pairs = 10  # Number of most similar/different pairs to visualize
+if use_vision_tower_data:
+    distances_csv = "embeddings/vt_aligned_distances.csv"
+    image_dir = "frames_covla_1k"
+    output_dir = "vt_aligned_comparison_images"
+    n_pairs = 10  # Number of most similar/different pairs to visualize
+else:
+    distances_csv = "embeddings/aligned_distances.csv"
+    image_dir = "frames_covla_1k"
+    output_dir = "aligned_comparison_images"
+    n_pairs = 10  # Number of most similar/different pairs to visualize
 
 # Create output directory if it doesn't exist
 os.makedirs(output_dir, exist_ok=True)
@@ -37,7 +46,8 @@ def create_comparison_image(img1_path, img2_path, distance, output_path, title):
     ax2.axis('off')
     
     # Add overall title with distance information
-    plt.suptitle(f"{title}\nAligned Distance: {distance:.4f}", fontsize=16)
+    embedding_type = "Vision Tower" if use_vision_tower_data else "Standard"
+    plt.suptitle(f"{title}\n{embedding_type} Aligned Distance: {distance:.4f}", fontsize=16)
     
     # Add spacing
     plt.tight_layout()
@@ -63,7 +73,8 @@ def main():
     
     # Get most similar pairs (smallest distances)
     similar_pairs = distances_df.nsmallest(n_pairs, 'distance')
-    print(f"\nProcessing {n_pairs} most similar image pairs (aligned distance)...")
+    embedding_type = "Vision Tower" if use_vision_tower_data else "Standard"
+    print(f"\nProcessing {n_pairs} most similar image pairs ({embedding_type} aligned distance)...")
     
     for i, (_, row) in enumerate(similar_pairs.iterrows()):
         img1_path = os.path.join(image_dir, row['image_1'])
@@ -76,12 +87,12 @@ def main():
             img2_path, 
             distance, 
             output_path, 
-            f"Most Similar Pair #{i+1} (Aligned)"
+            f"Most Similar Pair #{i+1} ({embedding_type} Aligned)"
         )
     
     # Get most different pairs (largest distances)
     different_pairs = distances_df.nlargest(n_pairs, 'distance')
-    print(f"\nProcessing {n_pairs} most different image pairs (aligned distance)...")
+    print(f"\nProcessing {n_pairs} most different image pairs ({embedding_type} aligned distance)...")
     
     for i, (_, row) in enumerate(different_pairs.iterrows()):
         img1_path = os.path.join(image_dir, row['image_1'])
@@ -94,10 +105,10 @@ def main():
             img2_path, 
             distance, 
             output_path, 
-            f"Most Different Pair #{i+1} (Aligned)"
+            f"Most Different Pair #{i+1} ({embedding_type} Aligned)"
         )
     
-    print(f"\nAll aligned comparison images saved to {output_dir}!")
+    print(f"\nAll {embedding_type} aligned comparison images saved to {output_dir}!")
 
 if __name__ == "__main__":
     main()

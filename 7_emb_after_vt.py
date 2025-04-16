@@ -17,43 +17,6 @@ model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
 # default processer
 processor = AutoProcessor.from_pretrained("Qwen/Qwen2.5-VL-3B-Instruct")
 
-# The default range for the number of visual tokens per image in the model is 4-16384.
-# You can set min_pixels and max_pixels according to your needs, such as a token range of 256-1280, to balance performance and cost.
-# min_pixels = 256*28*28
-# max_pixels = 1280*28*28
-# processor = AutoProcessor.from_pretrained("Qwen/Qwen2.5-VL-3B-Instruct", min_pixels=min_pixels, max_pixels=max_pixels)
-
-# # Function to process a single image and get its pixels
-# def get_image_pixels(image_path):
-#     messages = [
-#         {
-#             "role": "user",
-#             "content": [
-#                 {
-#                     "type": "image",
-#                     "image": image_path,
-#                 },
-#                 {"type": "text", "text": " "},
-#             ],
-#         }
-#     ]
-
-#     # Preparation for inference
-#     text = processor.apply_chat_template(
-#         messages, tokenize=False, add_generation_prompt=True
-#     )
-#     image_inputs, video_inputs = process_vision_info(messages)
-#     inputs = processor(
-#         text=[text],
-#         images=image_inputs,
-#         padding=True,
-#         return_tensors="pt",
-#     )
-
-#     # Get the image pixels
-#     image_pixels = inputs.pixel_values
-#     return image_pixels
-
 # Function to get vision tower embeddings
 def get_vision_tower_embeddings(image_path):
     # Get preprocessed image inputs
@@ -96,40 +59,6 @@ def get_vision_tower_embeddings(image_path):
         )
     
     return vision_embeddings
-
-# # Function to get mean pooled vision embeddings (for easier comparison/storage)
-# def get_pooled_vision_embeddings(image_path):
-#     # Get the full vision embeddings 
-#     vision_embeddings = get_vision_tower_embeddings(image_path)
-    
-#     # Mean pool over the sequence dimension to get a single vector per image
-#     # Shape goes from [batch_size, seq_len, hidden_dim] to [batch_size, hidden_dim]
-#     pooled_embeddings = vision_embeddings.mean(dim=1)
-    
-#     return pooled_embeddings
-
-# # Function to get vision processed embeddings
-# def get_vision_processed_embeddings(image_path):
-#     # Get preprocessed image pixels
-#     pixel_values = get_image_pixels(image_path)
-    
-#     # Move to the same device as the model
-#     pixel_values = pixel_values.to(model.device)
-    
-#     # Extract vision embeddings with no gradient computation
-#     with torch.no_grad():
-#         # Process through the vision component only
-#         outputs = model(pixel_values=pixel_values, output_hidden_states=True)
-        
-#         # The vision_hidden_states should contain the processed vision embeddings
-#         if hasattr(outputs, 'vision_hidden_states'):
-#             vision_embeddings = outputs.vision_hidden_states
-#         else:
-#             # If not available directly, you might need to access it differently
-#             # This is a fallback approach
-#             vision_embeddings = model.visual(pixel_values).last_hidden_state
-    
-#     return vision_embeddings
 
 # Directory containing the images
 image_dir = "frames_covla_1k"

@@ -6,35 +6,34 @@ from itertools import combinations
 from tqdm import tqdm  # Optional: for progress bar
 
 # Choose which data to process
-use_vision_tower_data = True  ################### Set to False to use original image embeddings ###################
+use_vision_tower_data = False  # Set to False to use original image embeddings
 
 if use_vision_tower_data:
     # New data from 7_emb_after_vt.py
     folder = "frames_covla_1k"
-    output_csv = "embeddings/vt_aligned_distances.csv"
+    output_csv = "embeddings/vt_aligned_similarities.csv"
     
     embeddings = np.load('embeddings/vision_tower_embeddings.npy', allow_pickle=True)
     metadata = pd.read_csv('embeddings/vision_tower_metadata.csv')
 else:
     # Original data from 0_compute_emb_distances.py
     folder = "frames_covla_1k"
-    output_csv = "embeddings/aligned_distances.csv"
+    output_csv = "embeddings/aligned_similarities.csv"
     
     embeddings = np.load('embeddings/image_embeddings.npy', allow_pickle=True)
     metadata = pd.read_csv('embeddings/image_metadata.csv')
 
-def aligned_distance(set1, set2, metric='euclidean'):
+def aligned_similarity(set1, set2):
     """
-    Compute the distance between two sets of vectors assuming they're already aligned.
-    This computes the distance between corresponding vectors and sums them.
+    Compute the cosine similarity between two sets of vectors assuming they're already aligned.
+    This computes the similarity between corresponding vectors and averages them.
     
     Args:
         set1: numpy array of shape (N, D) where N is the number of vectors and D is the vector dimension
         set2: numpy array of shape (N, D) with the same number of vectors as set1
-        metric: distance metric to use ('euclidean', 'sqeuclidean', 'cosine', etc.)
         
     Returns:
-        float: the sum of distances between corresponding vector pairs
+        float: the average cosine similarity between corresponding vector pairs
     """
     # Convert arrays to float type if they aren't already
     set1 = np.asarray(set1, dtype=np.float32)
@@ -44,28 +43,31 @@ def aligned_distance(set1, set2, metric='euclidean'):
     if set1.shape[0] != set2.shape[0]:
         raise ValueError(f"Sets must have the same number of vectors. Got {set1.shape[0]} and {set2.shape[0]}")
     
-    # Compute distances between corresponding vectors
-    # For each i, calculate distance between set1[i] and set2[i]
-    distances = np.array([
-        cdist(set1[i:i+1], set2[i:i+1], metric)[0][0]
+    # Compute cosine similarities between corresponding vectors
+    # For each i, calculate similarity between set1[i] and set2[i]
+    similarities = np.array([
+        cdist(set1[i:i+1], set2[i:i+1], 'cosine')[0][0]
         for i in range(set1.shape[0])
     ])
     
-    # Sum all distances
-    total_distance = np.sum(distances)
+    # Convert cosine distance to similarity (1 - distance)
+    similarities = 1 - similarities
     
-    return total_distance
+    # Average all similarities
+    avg_similarity = np.mean(similarities)
+    
+    return avg_similarity
 
 # Get list of image files
 image_dir = "frames_covla_1k"
-image_files = [f for f in os.listdir(image_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg'))][:300]
+image_files = [f for f in os.listdir(image_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
 
 # Prepare DataFrame to store results
 results = []
 
 # Use combinations to avoid computing the same pair twice
 total_comparisons = len(list(combinations(image_files, 2)))
-print(f"Computing {total_comparisons} unique pairwise distances...")
+print(f"Computing {total_comparisons} unique pairwise similarities...")
 
 for image_name_1, image_name_2 in tqdm(combinations(image_files, 2), total=total_comparisons):
     # Get embeddings for image 1
@@ -85,42 +87,42 @@ for image_name_1, image_name_2 in tqdm(combinations(image_files, 2), total=total
         image_embedding_2 = embeddings[image_index_2].astype(np.float32)
     
     try:
-        # Compute the aligned distance
-        distance = aligned_distance(image_embedding_1, image_embedding_2)
+        # Compute the aligned similarity
+        similarity = aligned_similarity(image_embedding_1, image_embedding_2)
         
         # Store result
         results.append({
             'image_1': image_name_1,
             'image_2': image_name_2,
-            'distance': distance
+            'similarity': similarity
         })
     except ValueError as e:
         # Skip if embeddings have different numbers of vectors
         print(f"Skipping {image_name_1} and {image_name_2}: {e}")
 
 # Create DataFrame from results
-distances_df = pd.DataFrame(results)
+similarities_df = pd.DataFrame(results)
 
 # Save to CSV
-distances_df.to_csv(output_csv, index=False)
-print(f"Distances saved to {output_csv}")
+similarities_df.to_csv(output_csv, index=False)
+print(f"Similarities saved to {output_csv}")
 
 # Display some statistics
-print("\nImages with smallest distance (most similar):")
-most_similar = distances_df.loc[distances_df['distance'].idxmin()]
-print(f"  {most_similar['image_1']} and {most_similar['image_2']}: {most_similar['distance']:.4f}")
+embedding_type = "Vision Tower" if use_vision_tower_data else "Standard"
+print(f"\nImages with highest {embedding_type} similarity (most similar):")
+most_similar = similarities_df.loc[similarities_df['similarity'].idxmax()]
+print(f"  {most_similar['image_1']} and {most_similar['image_2']}: {most_similar['similarity']:.4f}")
 
-print("\nImages with largest distance (most different):")
-most_different = distances_df.loc[distances_df['distance'].idxmax()]
-print(f"  {most_different['image_1']} and {most_different['image_2']}: {most_different['distance']:.4f}")
+print(f"\nImages with lowest {embedding_type} similarity (most different):")
+most_different = similarities_df.loc[similarities_df['similarity'].idxmin()]
+print(f"  {most_different['image_1']} and {most_different['image_2']}: {most_different['similarity']:.4f}")
 
 # Optional: If you want to find the N most similar/different pairs
 n = 5  # Number of pairs to show
-print(f"\nTop {n} most similar image pairs:")
-for _, row in distances_df.nsmallest(n, 'distance').iterrows():
-    print(f"  {row['image_1']} and {row['image_2']}: {row['distance']:.4f}")
+print(f"\nTop {n} most similar image pairs ({embedding_type}):")
+for _, row in similarities_df.nlargest(n, 'similarity').iterrows():
+    print(f"  {row['image_1']} and {row['image_2']}: {row['similarity']:.4f}")
 
-print(f"\nTop {n} most different image pairs:")
-for _, row in distances_df.nlargest(n, 'distance').iterrows():
-    print(f"  {row['image_1']} and {row['image_2']}: {row['distance']:.4f}")
-
+print(f"\nTop {n} most different image pairs ({embedding_type}):")
+for _, row in similarities_df.nsmallest(n, 'similarity').iterrows():
+    print(f"  {row['image_1']} and {row['image_2']}: {row['similarity']:.4f}")
