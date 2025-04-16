@@ -23,11 +23,16 @@ processor = AutoProcessor.from_pretrained("Qwen/Qwen2.5-VL-3B-Instruct")
 # max_pixels = 1280*28*28
 # processor = AutoProcessor.from_pretrained("Qwen/Qwen2.5-VL-3B-Instruct", min_pixels=min_pixels, max_pixels=max_pixels)
 
+
 messages = [
     {
         "role": "user",
         "content": [
-            {"type": "image", "image": "file:///sample_images/cat.jpg"},
+            {
+                "type": "image",
+                "image": "file://C:/Users/Administrator/Documents/Qwen2.5VL/sample_images/cat.jpg",
+            },
+            {"type": "text", "text": "Describe this image."},
         ],
     }
 ]
@@ -40,7 +45,7 @@ image_inputs, video_inputs = process_vision_info(messages)
 inputs = processor(
     text=[text],
     images=image_inputs,
-    videos=video_inputs,
+    #videos=video_inputs,
     padding=True,
     return_tensors="pt",
 )

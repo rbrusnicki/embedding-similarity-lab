@@ -70,7 +70,7 @@ metadata_file = os.path.join(output_dir, "image_metadata.csv")
 os.makedirs(output_dir, exist_ok=True)
 
 # Get list of all images in the directory
-image_files = [f for f in os.listdir(image_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+image_files = [f for f in os.listdir(image_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg'))][:1]
 print(f"Found {len(image_files)} images in {image_dir}")
 
 # Lists to store embeddings and metadata

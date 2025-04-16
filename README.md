@@ -1,153 +1,129 @@
-# Qwen2.5VL Testing
+# Vision Tower Embeddings for Qwen2.5-VL
 
-This repository contains a simple script to test the Qwen2.5VL 3B multimodal model from Alibaba.
+This repository contains utilities to extract and use vision tower embeddings from the Qwen2.5-VL multimodal model. These embeddings are useful for a variety of computer vision tasks, including image similarity, image retrieval, and clustering.
 
-## About Qwen2.5VL
+## Installation
 
-Qwen2.5VL is a multimodal large language model that can process both text and images. It's part of the Qwen (Qwen2.5) family of models developed by Alibaba. The model can:
-
-- Understand and describe image content in detail
-- Answer questions about images
-- Perform visual reasoning tasks
-- Generate text based on image inputs
-
-## Quick Start
-
-1. Install dependencies:
+1. Clone this repository:
 ```bash
-python install_dependencies.py
+git clone https://github.com/yourusername/qwen2.5-vl-embeddings.git
+cd qwen2.5-vl-embeddings
 ```
 
-2. Create a file named `.token` in the root directory with your Hugging Face token
-
-3. Download sample images:
+2. Install the required dependencies:
 ```bash
-python download_samples.py
+pip install transformers accelerate torch torchvision pandas numpy matplotlib scikit-learn tqdm
 ```
 
-4. Run the test:
-```bash
-python test_qwen2_5vl_local.py --image sample_images/cat.jpg
-```
+## Usage
 
-## Requirements
+### 1. Extracting Vision Tower Embeddings
 
-- Python 3.8+
-- PyTorch
-- Transformers (version 4.40.0 or higher)
-- Pillow
-- Huggingface Hub
-- Accelerate
-- Safetensors
-
-Install the required packages with:
+The `0_compute_emb_distances.py` script extracts vision tower embeddings from images in a given directory.
 
 ```bash
-# Option 1: Use the installation script (recommended)
-python install_dependencies.py
-
-# Option 2: Install via pip
-pip install torch transformers>=4.40.0 pillow huggingface_hub accelerate safetensors
-
-# Option 3: Install via setup.py
-pip install -e .
-
-# Optional but recommended: Install Qwen-VL package
-pip install git+https://github.com/QwenLM/Qwen-VL.git
+python 0_compute_emb_distances.py
 ```
 
-## Authentication
+Before running, you should update the following in the script:
+- `image_dir`: Path to your images folder
+- `output_dir`: Where to save the embeddings
 
-Qwen2.5VL models are gated and require authentication to access. You'll need to:
+The script includes two key functions:
+- `get_vision_tower_embeddings`: Extracts raw embeddings from the vision tower
+- `get_pooled_vision_embeddings`: Gets mean-pooled embeddings (more useful for similarity comparisons)
 
-1. Create a Hugging Face account if you don't have one
-2. Request access to the model at [Qwen2.5VL on Hugging Face](https://huggingface.co/Qwen/Qwen2.5-VL-3B-Instruct)
-3. Generate a Hugging Face token in your account settings
-4. Save your token in a file named `.token` in the root directory of this project
+### 2. Comparing Images using Vision Tower Embeddings
 
-The scripts will automatically read your token from the `.token` file for authentication.
-
-## Important Note on Model Loading
-
-Due to the multimodal nature of Qwen2.5VL, it requires special handling when loading through the Transformers library. The scripts provided handle this by using multiple approaches:
-
-1. First trying to import a specific module for Qwen VL models (if you installed the Qwen-VL package)
-2. Trying to use `AutoModelForVision` with `trust_remote_code=True`
-3. Falling back to other methods with `trust_remote_code`
-
-This avoids the error: `ValueError: Unrecognized configuration class for this kind of AutoModel: AutoModelForCausalLM`.
-
-## Using the Test Scripts
-
-### Basic URL Image Test
-
-The repository includes a test script (`test_qwen2_5vl.py`) that demonstrates how to:
-
-1. Load the Qwen2.5VL 3B model
-2. Process an image from a URL
-3. Generate a text description of the image
-
-To run the test:
+The `compare_images.py` script demonstrates how to compare images using vision tower embeddings.
 
 ```bash
-python test_qwen2_5vl.py
+python compare_images.py
 ```
 
-### Local Image Test
+Before running, update the `image_folder` variable in the script to point to your folder of images.
 
-To test with local images, use the `test_qwen2_5vl_local.py` script:
+The script:
+1. Loads a set of images
+2. Extracts vision tower embeddings for each image
+3. Computes a similarity matrix between all pairs of images
+4. Visualizes the similarity matrix and images
+5. Finds the most similar pair of images
+
+### 3. Image Search with Vision Tower Embeddings
+
+The `image_search.py` script implements a simple image search system using vision tower embeddings.
 
 ```bash
-python test_qwen2_5vl_local.py --image sample_images/cat.jpg
+python image_search.py --image_dir /path/to/image/collection --query_image /path/to/query/image.jpg --k 5
 ```
 
-You can also customize the prompt:
+Arguments:
+- `--image_dir`: Directory containing images to search through
+- `--query_image`: Path to the query image
+- `--k`: Number of results to return (default: 5)
+- `--build_index`: Force rebuilding the search index
+- `--output_dir`: Directory to save results (default: "search_results")
 
-```bash
-python test_qwen2_5vl_local.py --image sample_images/cat.jpg --prompt "What kind of animal is this and what is it doing?"
+The script:
+1. Builds a search index for all images in the specified directory (if not already built)
+2. Extracts the vision tower embedding for the query image
+3. Computes the similarity between the query and all indexed images
+4. Returns and visualizes the top-k most similar images
+
+## How It Works
+
+### Vision Tower Architecture
+
+The Qwen2.5-VL model contains a vision tower that processes images into embeddings. According to the model config:
+
+```json
+"vision_config": {
+  "depth": 32,
+  "hidden_act": "silu",
+  "hidden_size": 1280,
+  "intermediate_size": 3420,
+  "num_heads": 16,
+  "in_chans": 3,
+  "out_hidden_size": 2048,
+  "patch_size": 14,
+  "spatial_merge_size": 2,
+  "spatial_patch_size": 14,
+  "window_size": 112,
+  "fullatt_block_indexes": [
+    7, 15, 23, 31
+  ],
+  "tokens_per_second": 2,
+  "temporal_patch_size": 2
+}
 ```
 
-## Sample Images
+### Extraction Process
 
-You can download sample images for testing using:
+1. Images are processed through the Qwen2.5-VL processor to prepare them for the model
+2. The processed images are passed through the model's vision tower
+3. The last hidden state from the vision outputs is extracted
+4. For simplicity in comparison tasks, we mean-pool these embeddings across the sequence dimension
 
-```bash
-python download_samples.py
-```
+## Applications
 
-This will create a `sample_images` directory with a few test images.
+The vision tower embeddings can be used for:
 
-## Troubleshooting
+1. **Image Similarity**: Find similar images in a collection
+2. **Image Retrieval**: Search for images similar to a query image
+3. **Clustering**: Group similar images together
+4. **Transfer Learning**: Use these embeddings as features for downstream tasks
 
-### Model Loading Issues
+## Notes
 
-If you encounter model loading issues, try:
+- The model uses a dynamic visual resolution approach, which automatically resizes images to balance quality and computational efficiency.
+- For efficient memory usage, the scripts use `torch.no_grad()` during inference.
+- Embeddings are saved in NumPy format for easy storage and reuse.
 
-1. Install the Qwen-VL package directly:
-```bash
-pip install git+https://github.com/QwenLM/Qwen-VL.git
-```
+## Customization
 
-2. Make sure you're using a recent version of transformers (4.40.0 or higher):
-```bash
-pip install --upgrade transformers
-```
-
-3. Check that your Hugging Face token is correct and that you have access to the model
-
-### Out of Memory Issues
-
-If you encounter memory issues:
-
-1. Try setting a lower precision by modifying the scripts to use `torch.float32` or `torch.bfloat16`
-2. Try the 2B model version instead of the 3B version
-
-## Hardware Requirements
-
-For the 3B model: at least 8GB GPU VRAM (or can run on CPU but will be slow)
-
-## Resources
-
-- [Qwen2.5VL on Hugging Face](https://huggingface.co/Qwen/Qwen2.5-VL-3B-Instruct)
-- [Qwen Model Family Documentation](https://qwenlm.github.io/)
-- [Qwen-VL GitHub Repository](https://github.com/QwenLM/Qwen-VL) 
+You can customize the code to:
+- Use different pooling strategies (max pooling, attention pooling, etc.)
+- Extract embeddings from specific layers of the vision tower
+- Combine vision tower embeddings with other features
+- Implement more sophisticated search algorithms 
