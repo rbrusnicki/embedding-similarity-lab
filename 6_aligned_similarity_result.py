@@ -93,6 +93,27 @@ def create_complete_visualization(img1_path, img2_path, similarity, pairwise_sim
     cmap = plt.cm.RdBu  # Blue to Red colormap (swapped as requested)
     im = ax3.imshow(grid, cmap=cmap, vmin=0, vmax=1)
     
+    # Remove ticks from grid axes
+    ax3.set_xticks([])
+    ax3.set_yticks([])
+    
+    # Add text annotations to each cell
+    for i in range(grid.shape[0]):
+        for j in range(grid.shape[1]):
+            value = grid[i, j]
+            # Format value as specified: two decimal places, no leading zero
+            text_value = f".{int(value * 100):02d}"
+            
+            # Determine text color based on value
+            if 0.25 <= value <= 0.75:
+                text_color = 'black'
+            else:
+                text_color = 'white'
+            
+            # Add the text to the cell with increased font size
+            ax3.text(j, i, text_value, ha='center', va='center', 
+                    color=text_color, fontsize=8)
+    
     # Add colorbar
     cbar = plt.colorbar(im, ax=ax3)
     cbar.set_label('Similarity (0=Low, 1=High)')
